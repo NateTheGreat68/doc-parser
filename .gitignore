@@ -1,3 +1,11 @@
+# General
+*.swp
+
+# Project-specific
+docs/
+output*.csv
+output.db
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
