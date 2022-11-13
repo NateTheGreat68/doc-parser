@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import Optional, List, Dict, Type, Generator, Union
 import os
 import zipfile
 import re
@@ -75,3 +75,74 @@ class SpreadsheetParser(GenericParser):
 
 class PresentationParser(GenericParser):
     pass
+
+
+class ParserCollection:
+    """
+    Provides assistance with creating a collection of parsed documents and
+    generating outputs from them.
+
+    Init Parameters:
+      - parser: The class of parser to use (GenericParser or a derivative).
+      - files: If str: a directory to be traversed (including subdirs) for
+        files to parse. If list: a list of filenames to be parsed.
+      - output_props: Optional. A List[str], the name(s) of the parser
+        named attrs which will be output by the various output methods here.
+      - output_props_extended: Optional. A Dict[str, List[str]. The keys
+        should be the names of attrs within the parser, each of which is a
+        List[Dict[str, Any]]. This is used for the extended output
+        methods here.
+    """
+
+    def __init__(
+            self,
+            parser: Type[GenericParser],
+            files: Union[str, List[str]],
+            output_props: List[str] = [],
+            output_props_extended: Dict[str, List[str]] = {},
+            ):
+        self.parser = parser
+        self.docs = {}
+        if type(files) == str: #Walk the directory.
+            for (path, dirnames, filenames) in os.walk(files):
+                for filename in filenames:
+                    self.add_file(os.path.join(path, filename))
+        else: #Handle the list of filepaths.
+            for filepath in files:
+                self.add_file(filepath)
+        self.output_props = output_props
+        self.output_props_extended = output_props_extended
+
+    def add_file(
+            self,
+            filepath: str,
+            ) -> None:
+        """
+        Add a new file to the collection and parse it.
+
+        Parameters:
+          - filepath: The path to the file.
+        """
+        self.docs[filepath] = self.parser(filepath)
+
+    def output_dicts(
+            self,
+            props: List[str] = None,
+            ) -> Generator[Dict, None, None]:
+        """
+        Creates a dict for each doc in the collection with the selected properties.
+
+        Parameters:
+          - props: Optional. A list of the parser attrs to be output in each dict.
+            If not provided, the output_props specified at class initialization is
+            used.
+        Return: Generator, each iteration yielding a dict with props as keys and
+        the parser's related attrs as values.
+        """
+        if not props:
+            props = self.output_props
+        for doc in self.docs.values():
+            output = {}
+            for prop in props:
+                output[prop] = getattr(doc, prop, None)
+            yield output
