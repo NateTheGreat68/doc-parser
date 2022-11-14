@@ -155,15 +155,21 @@ class ParserCollection:
         for key, doc in self.docs.items():
             key = getattr(doc, 'key', key) #Use the parser's key attr if it has it
             if not extended_attr: #Fetch doc attrs (non-extended mode)
-                output = {}
-                output['key'] = key
-                for prop in [p for p in props if p != 'key']:
-                    output[prop] = getattr(doc, prop, None)
-                yield output
-            else: #Fetch 0 or more records from a single doc attr (extended mode)
-                for record in getattr(doc, extended_attr, []): #Empty list default to prevent error
+                try:
                     output = {}
-                    output['doc_key'] = key
-                    for prop in [p for p in props if p != 'doc_key']:
-                        output[prop] = record[prop] if prop in record else None
+                    output['key'] = key
+                    for prop in [p for p in props if p != 'key']:
+                        output[prop] = getattr(doc, prop, None)
                     yield output
+                except:
+                    continue
+            else: #Fetch 0 or more records from a single doc attr (extended mode)
+                try:
+                    for record in getattr(doc, extended_attr, []): #Empty list default to prevent error
+                        output = {}
+                        output['doc_key'] = key
+                        for prop in [p for p in props if p != 'doc_key']:
+                            output[prop] = record[prop] if prop in record else None
+                        yield output
+                except:
+                    continue
