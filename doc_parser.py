@@ -130,6 +130,7 @@ class ParserCollection:
     def output_dicts(
             self,
             props: List[str] = None,
+            extended_attr: str = None,
             ) -> Generator[Dict, None, None]:
         """
         Creates a dict for each doc in the collection with the selected properties.
@@ -138,14 +139,31 @@ class ParserCollection:
           - props: Optional. A list of the parser attrs to be output in each dict.
             If not provided, the output_props specified at class initialization is
             used.
+          - extended_attr: Optional. The name of the parser's attribute to use when
+            fetching "extended" data (data for which there are 0 or more records
+            per document, rather than exactly one record per document). When None
+            (default), doesn't act as extended data.
         Return: Generator, each iteration yielding a dict with props as keys and
-        the parser's related attrs as values.
+        the parser's related attrs as values. Each dict includes a "key" value
+        (when not in extended mode) or a "doc_key" value (when in extended mode).
         """
         if not props:
-            props = self.output_props
+            if not extended_attr:
+                props = self.output_props
+            else:
+                props = self.output_props_extended[extended_attr]
         for key, doc in self.docs.items():
-            output = {}
-            output['key'] = getattr(doc, 'key', key) #Use the parser's key attr if it has it.
-            for prop in [p for p in props if p != 'key']:
-                output[prop] = getattr(doc, prop, None)
-            yield output
+            key = getattr(doc, 'key', key) #Use the parser's key attr if it has it
+            if not extended_attr: #Fetch doc attrs (non-extended mode)
+                output = {}
+                output['key'] = key
+                for prop in [p for p in props if p != 'key']:
+                    output[prop] = getattr(doc, prop, None)
+                yield output
+            else: #Fetch 0 or more records from a single doc attr (extended mode)
+                for record in getattr(doc, extended_attr, []): #Empty list default to prevent error
+                    output = {}
+                    output['doc_key'] = key
+                    for prop in [p for p in props if p != 'doc_key']:
+                        output[prop] = record[prop] if prop in record else None
+                    yield output
