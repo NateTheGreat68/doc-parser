@@ -103,6 +103,7 @@ class ParserCollection:
             ):
         self.parser = parser
         self.docs = {}
+        self._next_key = 0
         if type(files) == str: #Walk the directory.
             for (path, dirnames, filenames) in os.walk(files):
                 for filename in filenames:
@@ -123,7 +124,8 @@ class ParserCollection:
         Parameters:
           - filepath: The path to the file.
         """
-        self.docs[filepath] = self.parser(filepath)
+        self.docs[self._next_key] = self.parser(filepath)
+        self._next_key += 1
 
     def output_dicts(
             self,
@@ -141,8 +143,9 @@ class ParserCollection:
         """
         if not props:
             props = self.output_props
-        for doc in self.docs.values():
+        for key, doc in self.docs.items():
             output = {}
-            for prop in props:
+            output['key'] = getattr(doc, 'key', key) #Use the parser's key attr if it has it.
+            for prop in [p for p in props if p != 'key']:
                 output[prop] = getattr(doc, prop, None)
             yield output
