@@ -221,3 +221,29 @@ class ParserCollection:
                             yield output
                     except:
                         continue
+
+    def output_csv(
+            self,
+            filename: str,
+            **kwargs,
+            ) -> 'ParserCollection':
+        """
+        Creates a csv file based on output_dicts. See that method for additional
+        information on usage.
+
+        Parameters:
+          - filename: The filename for the csv (can be specified as just the
+            file basename, or with an absolute or relative path).
+          - **kwargs: Will be sent to output_data to generate the data for the
+            csv file. See that method for available options.
+        Return: self, for the purposes of chaining multiple outputs together.
+        """
+        try:
+            with open(filename, 'w', newline='') as f:
+                data = self.output_data(**kwargs)
+                c = csv.DictWriter(f, data.field_list)
+                c.writeheader()
+                c.writerows(data.records)
+            return self
+        except:
+            return self
