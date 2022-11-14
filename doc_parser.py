@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import Optional, List, Dict, Type, Generator, Union
 import os
 import zipfile
 import re
@@ -75,3 +75,175 @@ class SpreadsheetParser(GenericParser):
 
 class PresentationParser(GenericParser):
     pass
+
+
+class ParserCollection:
+    """
+    Provides assistance with creating a collection of parsed documents and
+    generating outputs from them.
+
+    Init Parameters:
+      - parser: The class of parser to use (GenericParser or a derivative).
+      - files: If str: a directory to be traversed (including subdirs) for
+        files to parse. If list: a list of filenames to be parsed.
+      - output_props: Optional. A List[str], the name(s) of the parser
+        named attrs which will be output by the various output methods here.
+      - output_props_extended: Optional. A Dict[str, List[str]. The keys
+        should be the names of attrs within the parser, each of which is a
+        List[Dict[str, Any]]. This is used for the extended output
+        methods here.
+    """
+
+    def __init__(
+            self,
+            parser: Type[GenericParser],
+            files: Union[str, List[str]],
+            output_props: List[str] = [],
+            output_props_extended: Dict[str, List[str]] = {},
+            ):
+        self.parser = parser
+        self.docs = {}
+        self._next_key = 0
+        if type(files) == str: #Walk the directory.
+            for (path, dirnames, filenames) in os.walk(files):
+                for filename in filenames:
+                    self.add_file(os.path.join(path, filename))
+        else: #Handle the list of filepaths.
+            for filepath in files:
+                self.add_file(filepath)
+        self.output_props = output_props
+        self.output_props_extended = output_props_extended
+
+    def add_file(
+            self,
+            filepath: str,
+            ) -> None:
+        """
+        Add a new file to the collection and parse it.
+
+        Parameters:
+          - filepath: The path to the file.
+        """
+        self.docs[self._next_key] = self.parser(filepath)
+        self._next_key += 1
+
+    def output_data(
+            self,
+            **kwargs,
+            ) -> 'ParserCollection.OutputData':
+        """
+        A factory for creating ParserCollection.OutputData class.
+        See that class for additional information on usage.
+
+        Parameters:
+          - **kwargs: See the init for ParseCollection.OutputData
+            for information on parameters.
+        Return: A built ParserCollection.OutputData class.
+        """
+        return ParserCollection.OutputData(
+                self,
+                **kwargs,
+                )
+
+
+    class OutputData:
+        """
+        Used to create output data which can be consumed by other methods to
+        output csv files, SQL tables, etc.
+
+        Init Parameters:
+          - parser_collection: The instance of the outer ParserCollection class.
+          - props: Optional. A list of the parser attrs to be output in each dict.
+            If not provided, the output_props specified at class initialization is
+            used.
+          - extended_attr: Optional. The name of the parser's attribute to use when
+            fetching "extended" data (data for which there are 0 or more records
+            per document, rather than exactly one record per document). When None
+            (default), doesn't act as extended data.
+        """
+
+        def __init__(
+                self,
+                parser_collection: 'ParserCollection',
+                props: List[str] = None,
+                extended_attr: str = None,
+                ):
+            self.parser_collection = parser_collection
+            if not props:
+                if not extended_attr:
+                    self.props = parser_collection.output_props
+                else:
+                    self.props = parser_collection.output_props_extended[extended_attr]
+            self.extended_attr = extended_attr
+
+        @property
+        def field_list(
+                self,
+                ) -> List[str]:
+            """
+            Provides a field list for the compiled output data.
+
+            Return: A list of the fields (props) provided by this OutputData.
+            """
+            return self.props
+
+        @property
+        def records(
+                self,
+                ) -> Generator[Dict, None, None]:
+            """
+            Creates a dict for each doc in the collection with the selected properties.
+
+            Return: Generator, each iteration yielding a dict with props as keys and
+            the parser's related attrs as values. Each dict includes a "key" value
+            (when not in extended mode) or a "doc_key" value (when in extended mode).
+            """
+            props = self.props
+            extended_attr = self.extended_attr
+            for key, doc in self.parser_collection.docs.items():
+                key = getattr(doc, 'key', key) #Use the parser's key attr if it has it
+                if not extended_attr: #Fetch doc attrs (non-extended mode)
+                    try:
+                        output = {}
+                        output['key'] = key
+                        for prop in [p for p in props if p != 'key']:
+                            output[prop] = getattr(doc, prop, None)
+                        yield output
+                    except:
+                        continue
+                else: #Fetch 0 or more records from a single doc attr (extended mode)
+                    try:
+                        for record in getattr(doc, extended_attr, []): #Empty list default to prevent error
+                            output = {}
+                            output['doc_key'] = key
+                            for prop in [p for p in props if p != 'doc_key']:
+                                output[prop] = record[prop] if prop in record else None
+                            yield output
+                    except:
+                        continue
+
+    def output_csv(
+            self,
+            filename: str,
+            **kwargs,
+            ) -> 'ParserCollection':
+        """
+        Creates a csv file based on output_dicts. See that method for additional
+        information on usage.
+
+        Parameters:
+          - filename: The filename for the csv (can be specified as just the
+            file basename, or with an absolute or relative path).
+          - **kwargs: Will be sent to output_data to generate the data for the
+            csv file. See that method for available options.
+        Return: self, for the purposes of chaining multiple outputs together.
+        """
+        try:
+            with open(filename, 'w', newline='') as f:
+                data = self.output_data(**kwargs)
+                c = csv.DictWriter(f, data.field_list)
+                c.writeheader()
+                c.writerows(data.records)
+            return self
+        except:
+            return self
