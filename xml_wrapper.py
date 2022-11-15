@@ -183,19 +183,26 @@ class XMLWrapper:
 
     def get_text_value(
             self,
+            start_node: minidom.Node = None,
             ) -> Optional[str]:
         """
-        Returns the first text value found within the XML DOM.
+        Returns a compilation of all text values found within the XML DOM.
 
+        Parameters:
+          - start_node: The node to start at; used for recursion.
         Return: The found string; None on failure.
         """
         try:
-            n = self.node
-            if n.firstChild.nodeType == n.TEXT_NODE:
-                return n.firstChild.nodeValue
-            else:
-                for n in n.getElementsByTagName(self.text_node_tag):
-                    if n.firstChild.nodeType == n.TEXT_NODE:
-                        return n.firstChild.nodeValue
+            found_text = ''
+            if not start_node:
+                start_node = self.node
+            for n in start_node.childNodes:
+                if n.nodeType == n.TEXT_NODE: #Node is text
+                    found_text += n.nodeValue
+                elif n.tagName in self.special_tags: #Tag has special meaning
+                    found_text += self.special_tags[n.tagName]
+                else: #Descend into the child node.
+                    found_text += self.get_text_value(n)
+            return found_text
         except:
             return None
