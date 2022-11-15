@@ -19,7 +19,7 @@ class XMLWrapper:
             text_node_tag: Optional[str] = 'w:t',
             ):
         self.minidom = minidom.parseString(xml_contents)
-        self.text_node_tag = 'w:t'
+        self.text_node_tag = text_node_tag
         self.reset_to_root()
 
     def reset_to_root(
