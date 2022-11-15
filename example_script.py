@@ -134,18 +134,18 @@ if __name__ == '__main__':
                 ],
             },
         )
-    map(
-            lambda x: docs_collection.output_csv(**x),
-            [
-                {
-                    'filename': CSV_DOCS,
-                    },
-                {
-                    'filename': CSV_REFS,
-                    'extended_attr': 'references',
-                    },
-                {
-                    'filename': CSV_RESPS,
-                    'extended_attr': 'responsibilities',
-                    },
-                ])
+    outputs = [
+            {
+                'filename': CSV_DOCS,
+                },
+            {
+                'filename': CSV_REFS,
+                'extended_attr': 'references',
+                },
+            {
+                'filename': CSV_RESPS,
+                'extended_attr': 'responsibilities',
+                },
+            ]
+    for o in outputs:
+        docs_collection.output_csv(**o)
