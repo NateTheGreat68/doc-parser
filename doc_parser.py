@@ -24,6 +24,7 @@ class GenericParser:
         self.filename = os.path.basename(self.filepath)
         self.filename_base, self.filename_ext = os.path.splitext(self.filename)
         self.text_node_tag = 'w:t'
+        self.special_tags = {}
         
         self._xml_files = {}
         with zipfile.ZipFile(self.filepath) as z:
@@ -49,6 +50,7 @@ class GenericParser:
                     self._xml_files[xml_filename] = XMLWrapper(
                             z.read(xml_filename),
                             self.text_node_tag,
+                            self.special_tags,
                             )
             return self._xml_files[xml_filename].reset_to_root()
         except:
@@ -68,6 +70,9 @@ class WordProcessingParser(GenericParser):
                 filepath,
                 )
         self.text_node_tag = 'w:t'
+        self.special_tags = {
+                'w:tab': lambda n: "\t" if n.toxml() == '<w:tab/>' else '',
+                }
 
 
 class SpreadsheetParser(GenericParser):
