@@ -71,7 +71,7 @@ class WordProcessingParser(GenericParser):
                 )
         self.text_node_tag = 'w:t'
         self.special_tags = {
-                'w:tab': "\t",
+                'w:tab': lambda n: "\t" if n.toxml() == '<w:tab/>' else '',
                 }
 
 

@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Dict, Union, Callable
 import re
 from xml.dom import minidom
 
@@ -11,15 +11,21 @@ class XMLWrapper:
       - xml_contents: A str containing the XML to be parsed.
       - text_node_tag = 'w:t': Optional. The XML tag name for nodes expected to
         contain text.
+      - special_tags: Optional. Tags with special meaning, such as w:tab being
+        equivalent to \\t. Dict with keys tagnames and values text to sub, or
+        values can also be callables which get passed the node and return text
+        to sub.
     """
 
     def __init__(
             self,
             xml_contents: str,
             text_node_tag: Optional[str] = 'w:t',
+            special_tags: Optional[Dict[str, Union[str, Callable]]] = {}
             ):
         self.minidom = minidom.parseString(xml_contents)
         self.text_node_tag = text_node_tag
+        self.special_tags = special_tags
         self.reset_to_root()
 
     def reset_to_root(
@@ -200,7 +206,10 @@ class XMLWrapper:
                 if n.nodeType == n.TEXT_NODE: #Node is text
                     found_text += n.nodeValue
                 elif n.tagName in self.special_tags: #Tag has special meaning
-                    found_text += self.special_tags[n.tagName]
+                    if callable(self.special_tags[n.tagName]):
+                        found_text += self.special_tags[n.tagName](n)
+                    else:
+                        found_text += self.special_tags[n.tagName]
                 else: #Descend into the child node.
                     found_text += self.get_text_value(n)
             return found_text
