@@ -68,17 +68,23 @@ class SOP(WordProcessingParser):
     def references(
             self,
             ) -> List[Dict[str, str]]:
-        # Placeholder for testing purposes.
-        return [
-                {
-                    'doc_number': 'ref1',
-                    'description': 'Description 1',
-                    },
-                {
-                    'doc_number': 'ref2',
-                    'description': 'Description 2',
-                    },
-                ]
+        refs = []
+        try:
+            r = re.compile(r'^\t?(?P<num>[-.A-Z0-9]+)\t(?P<desc>[^\t]+)$')
+            n = self.xml_file('word/document.xml') \
+                    .set_text_node_by_pattern(r'^References?:?\w*$') \
+                    .set_ancestor_node_by_tag('w:p')
+            while n.set_nextSibling():
+                re_match = r.match(n.get_text_value())
+                if not re_match: #No match means it's time to stop parsing
+                    break
+                refs.append({
+                    'doc_number': re_match.group('num'),
+                    'description': re_match.group('desc'),
+                    })
+            return refs
+        except:
+            return refs
 
     @property
     def has_responsibilities(
@@ -95,18 +101,23 @@ class SOP(WordProcessingParser):
     def responsibilities(
             self,
             ) -> bool:
-        # Placeholder for testing purposes.
-        return [
-                {
-                    'party': 'Person 1',
-                    'responsibilities': "Person 1's responsibilities",
-                    },
-                {
-                    'party': 'Person 2',
-                    'responsibilities': "Person 2's responsibilities",
-                    },
-                ]
-                    
+        resps = []
+        try:
+            r = re.compile(r'^\t?(?P<party>[A-Za-z0-9, ]+)\t(?P<resp>[^\t]+)$')
+            n = self.xml_file('word/document.xml') \
+                    .set_text_node_by_pattern(r'^Responsibilit(y|ies):?\w*$') \
+                    .set_ancestor_node_by_tag('w:p')
+            while n.set_nextSibling():
+                re_match = r.match(n.get_text_value())
+                if not re_match: #No match means it's time to stop parsing
+                    break
+                resps.append({
+                    'party': re_match.group('party'),
+                    'responsibilities': re_match.group('resp'),
+                    })
+            return resps
+        except:
+            return resps
 
 
 if __name__ == '__main__':
