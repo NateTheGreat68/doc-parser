@@ -16,6 +16,8 @@ CSV_RESPS = 'output_resps.csv'
 
 
 class SOP(WordProcessingParser):
+    _re_doc_match = re.compile(r'^(?P<num>[.A-Z]+-\d+), (?P<name>.*)$')
+
     def __init__(
             self,
             filepath: str,
@@ -25,7 +27,7 @@ class SOP(WordProcessingParser):
                 )
         
         # Extract the document name and number.
-        re_doc_match = re.match(r'^(?P<num>[.A-Z]+-\d+), (?P<name>.*)$', self.filename_base)
+        re_doc_match = SOP._re_doc_match.match(self.filename_base)
         self.doc_number = re_doc_match.group('num') if re_doc_match else None
         self.doc_name = re_doc_match.group('name') if re_doc_match else None
 
